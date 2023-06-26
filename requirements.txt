@@ -1,0 +1,6 @@
+asyncpg==0.27.0
+Faker==18.11.1
+lorem==0.1.1
+psycopg2-binary==2.9.6
+python-dateutil==2.8.2
+six==1.16.0
