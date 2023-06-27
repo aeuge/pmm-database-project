@@ -1,3 +1,5 @@
+import datetime
+import json
 import random
 import uuid
 
@@ -5,6 +7,33 @@ from faker import Faker
 
 fake = Faker()
 ru_fake = Faker('ru_RU')
+
+
+def gen_movies_staff(conn, count=None):
+    with conn.cursor() as cursor:
+        """"""
+        cursor.execute('select id from persons;')
+        persons_ids_list = [id[0] for id in cursor.fetchall()]
+
+        cursor.execute('select id from person_position;')
+        persons_positions_ids_list = [id[0] for id in cursor.fetchall()]
+
+        cursor.execute('SELECT id FROM movies;')
+        for i in range(count or cursor.rowcount):
+            movie_id = cursor.fetchone()[0]
+            persons = fake.random_choices(elements=persons_ids_list, length=random.randint(5, len(persons_positions_ids_list)))
+            is_lead = True
+            for _ in range(len(persons)):
+
+                yield {
+                    'character': fake.name(),
+                    'is_lead_role': is_lead,
+                    'position_id': random.choice(persons_positions_ids_list) ,
+                    'person_id': persons.pop(),
+                    'movie_id': movie_id,
+                    }
+                if is_lead:
+                    is_lead = False
 
 
 def gen_awards(conn, procent=0.5):

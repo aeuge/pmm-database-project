@@ -3,15 +3,16 @@ import random
 import psycopg2
 
 from loads.dyn_loads import gen_awards, gen_cinema_movie_presence, gen_publications, gen_user_movie_orders, \
-    gen_users_rating
-from stat_loads import gen_tags_list, gen_persons_positions, gen_publications_category, \
-    gen_awards_nominations, gen_awards_category, gen_person_data, gen_cinema_online, gen_movies_data, gen_users_data
+    gen_users_rating, gen_movies_staff
+from stat_loads import (gen_tags_list, gen_persons_positions, gen_publications_category,
+                        gen_awards_nominations, gen_awards_category, gen_person_data, gen_cinema_online,
+                        gen_movies_data, gen_users_data)
 
 
 # Заплнение статическими данными
 def load_tags(conn, cursor):
     # tags
-    statement = r"INSERT INTO tags (title) VALUES (%s);"
+    statement = r"INSERT INTO tags (title) values (%s);"
     for tag in gen_tags_list():
         print("INSERT: ", tag)
         cursor.execute(statement, (tag,))
@@ -20,7 +21,7 @@ def load_tags(conn, cursor):
 
 def load_publications_category(conn, cursor):
     # tags
-    statement = r"INSERT INTO publications_category (title) VALUES (%s);"
+    statement = r"INSERT INTO publications_category (title) values (%s);"
     for publications_category in gen_publications_category():
         print("INSERT: ", publications_category)
         cursor.execute(statement, (publications_category,))
@@ -29,7 +30,7 @@ def load_publications_category(conn, cursor):
 
 def load_award_registry(conn, cursor):
     # tags
-    statement = r"INSERT INTO film_award_registry (title) VALUES (%s);"
+    statement = r"INSERT INTO film_award_registry (title) values (%s);"
     for award in gen_awards_category():
         print("INSERT: ", award)
         cursor.execute(statement, (award,))
@@ -38,7 +39,7 @@ def load_award_registry(conn, cursor):
 
 def load_awards_nominations(conn, cursor):
     # tags
-    statement = r"INSERT INTO film_award_nominations_registry (title) VALUES (%s);"
+    statement = r"INSERT INTO film_award_nominations_registry (title) values (%s);"
     for nomination in gen_awards_nominations():
         print("INSERT: ", nomination)
         cursor.execute(statement, (nomination,))
@@ -47,7 +48,7 @@ def load_awards_nominations(conn, cursor):
 
 def load_persons_positions(conn, cursor):
     # tags
-    statement = r"INSERT INTO person_position (title) VALUES (%s);"
+    statement = r"INSERT INTO person_position (title) values (%s);"
     for position in gen_persons_positions():
         print("INSERT: ", position)
         cursor.execute(statement, (position,))
@@ -56,7 +57,7 @@ def load_persons_positions(conn, cursor):
 
 def load_cinema_online(conn, cursor):
     # tags
-    statement = r"INSERT INTO cinema_online (title, url) VALUES (%s,%s);"
+    statement = r"INSERT INTO cinema_online (title, url) values (%s,%s);"
     for row in gen_cinema_online():
         print("INSERT: ", row)
         cursor.execute(statement, (row['title'],
@@ -67,7 +68,7 @@ def load_cinema_online(conn, cursor):
 
 def load_persons(conn, cursor):
     # tags
-    statement = r"INSERT INTO persons (country, name, birthday, bio) VALUES (%s,%s,%s,%s);"
+    statement = r"INSERT INTO persons (country, name, birthday, bio) values (%s,%s,%s,%s);"
     for row in gen_person_data():
         print("INSERT: ", row)
         cursor.execute(statement, (row['country'],
@@ -81,7 +82,7 @@ def load_persons(conn, cursor):
 
 def load_users(conn, cursor):
     # tags
-    statement = r'INSERT INTO users (username, email, "password", fio, bio, created_at, birthday, last_logon) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);'
+    statement = r'INSERT INTO users (username, email, "password", fio, bio, created_at, birthday, last_logon) values (%s,%s,%s,%s,%s,%s,%s,%s);'
     for row in gen_users_data(count=100):
         try:
             print("INSERT: ", row)
@@ -102,7 +103,7 @@ def load_users(conn, cursor):
 
 def load_movies_data(conn, cursor):
     # tags
-    statement = r'INSERT INTO movies (isbn, title, title_original, country, "year", budget, boxoffice, rating, duration, rars, tags, subject) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);'
+    statement = r'INSERT INTO movies (isbn, title, title_original, country, "year", budget, boxoffice, rating, duration, rars, tags, subject) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);'
     for row in gen_movies_data():
         print("INSERT: ", row)
         cursor.execute(statement, (row['isbn'],
@@ -117,6 +118,22 @@ def load_movies_data(conn, cursor):
                                    row['rars'],
                                    row['tags'],
                                    row['subject'],
+                                   )
+                       )
+    conn.commit()
+
+
+# ----------------
+def load_movies_staff(conn, cursor):
+    """"""
+    statement = r'INSERT INTO movie_staff_m2m (character, is_lead_role, position_id, person_id, movie_id) values (%s,%s,%s,%s,%s);'
+    for row in gen_movies_staff(conn):
+        print("movies_staff INSERT: ", row)
+        cursor.execute(statement, (row['character'],
+                                   row['is_lead_role'],
+                                   row['position_id'],
+                                   row['person_id'],
+                                   row['movie_id'],
                                    )
                        )
     conn.commit()
@@ -140,9 +157,10 @@ def load_publications(conn, cursor):
 
 if __name__ == '__main__':
     ''''''
-    # conn = psycopg2.connect(dsn='postgresql://dba:DBAHOME@nas:5432/kinoteka')
-    # print(conn, conn.status)
-    # with conn.cursor() as cursor:
+    conn = psycopg2.connect(dsn='postgresql://postgres:POSTGRES6602!@10.66.2.134:5432/kinoteka?sslmode=require')
+    print(conn, conn.status)
+    with conn.cursor() as cursor:
+        ''''''
         # constant data
         # load_tags(conn, cursor)
         # load_publications_category(conn, cursor)
@@ -160,5 +178,6 @@ if __name__ == '__main__':
         # for data in gen_users_rating(conn, count=10):
         #     print(data)
 
-    print(random.choice(range(1000)))
 
+
+        load_movies_staff(conn, cursor)
