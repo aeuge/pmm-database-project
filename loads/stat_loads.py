@@ -67,7 +67,7 @@ def gen_awards_nominations():
         yield nomination
 
 
-def gen_person_data(count=500000):
+def gen_person_data(count=500):
     for _ in range(count):
         i = random.choice(codes)
         fake = fakers[i]
@@ -79,7 +79,7 @@ def gen_person_data(count=500000):
         }
 
 
-def gen_movies_data(count=100000):
+def gen_movies_data(count=100):
     ''''''
     for _ in range(count):
         i = random.choice(codes)
@@ -108,7 +108,7 @@ def gen_cinema_online():
         }
 
 
-def gen_users_data(count=5000000):
+def gen_users_data(count=500):
     for _ in range(count):
         yield {
             'username': ru_fake.user_name(),

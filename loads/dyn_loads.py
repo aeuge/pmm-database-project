@@ -61,19 +61,19 @@ def gen_awards(conn, procent=0.5):
                 }
 
 
-def gen_cinema_movie_presence(conn, count=100):
+def gen_cinema_movie_presence(conn, count=50):
     """"""
     with conn.cursor() as cursor:
-        cursor.execute('SELECT id FROM movies ORDER BY title LIMIT %s;', (count,))
+        cursor.execute('SELECT id FROM movies;')
         movies_id_list = [id[0] for id in cursor.fetchall()]
 
         cursor.execute('SELECT id FROM cinema_online;')
         cinema_online_id_list = [id[0] for id in cursor.fetchall()]
 
-        for cinema_id in cinema_online_id_list:
+        for cinema_id in range(count):
             yield {
                 'movie_id': random.choice(movies_id_list),
-                'cinema_id': cinema_id,
+                'cinema_id': random.choice(cinema_online_id_list),
                 'price': fake.random_sample(elements=(100, 150, 200, 250, 300, 350, 400, 450), length=1)[0],
                 'rating': fake.random_sample(elements=(1, 2, 3, 4, 5), length=1)[0],
                 'discount': fake.random_sample(elements=(10, 20, 30, 40, 50), length=1)[0],

@@ -2,8 +2,8 @@ import random
 
 import psycopg2
 
-from loads.dyn_loads import gen_awards, gen_cinema_movie_presence, gen_publications, gen_user_movie_orders, \
-    gen_users_rating, gen_movies_staff
+from loads.dyn_loads import (gen_awards, gen_cinema_movie_presence, gen_publications, gen_user_movie_orders,
+                             gen_users_rating, gen_movies_staff, gen_comments)
 from stat_loads import (gen_tags_list, gen_persons_positions, gen_publications_category,
                         gen_awards_nominations, gen_awards_category, gen_person_data, gen_cinema_online,
                         gen_movies_data, gen_users_data)
@@ -16,7 +16,7 @@ def load_tags(conn, cursor):
     for tag in gen_tags_list():
         print("INSERT: ", tag)
         cursor.execute(statement, (tag,))
-    conn.commit()
+    # conn.commit()
 
 
 def load_publications_category(conn, cursor):
@@ -25,7 +25,7 @@ def load_publications_category(conn, cursor):
     for publications_category in gen_publications_category():
         print("INSERT: ", publications_category)
         cursor.execute(statement, (publications_category,))
-    conn.commit()
+    # conn.commit()
 
 
 def load_award_registry(conn, cursor):
@@ -34,7 +34,7 @@ def load_award_registry(conn, cursor):
     for award in gen_awards_category():
         print("INSERT: ", award)
         cursor.execute(statement, (award,))
-    conn.commit()
+    # conn.commit()
 
 
 def load_awards_nominations(conn, cursor):
@@ -43,7 +43,7 @@ def load_awards_nominations(conn, cursor):
     for nomination in gen_awards_nominations():
         print("INSERT: ", nomination)
         cursor.execute(statement, (nomination,))
-    conn.commit()
+    # conn.commit()
 
 
 def load_persons_positions(conn, cursor):
@@ -52,7 +52,7 @@ def load_persons_positions(conn, cursor):
     for position in gen_persons_positions():
         print("INSERT: ", position)
         cursor.execute(statement, (position,))
-    conn.commit()
+    # conn.commit()
 
 
 def load_cinema_online(conn, cursor):
@@ -63,7 +63,7 @@ def load_cinema_online(conn, cursor):
         cursor.execute(statement, (row['title'],
                                    row['url']
                                    ))
-    conn.commit()
+    # conn.commit()
 
 
 def load_persons(conn, cursor):
@@ -77,28 +77,29 @@ def load_persons(conn, cursor):
                                    row['bio'],
                                    )
                        )
-    conn.commit()
+    # conn.commit()
 
 
 def load_users(conn, cursor):
     # tags
     statement = r'INSERT INTO users (username, email, "password", fio, bio, created_at, birthday, last_logon) values (%s,%s,%s,%s,%s,%s,%s,%s);'
     for row in gen_users_data(count=100):
-        try:
-            print("INSERT: ", row)
-            cursor.execute(statement, (row['username'],
-                                       row['email'],
-                                       row['password'],
-                                       row['fio'],
-                                       row['bio'],
-                                       row['created_at'],
-                                       row['birthday'],
-                                       row['last_logon'],
-                                       )
-                           )
-        except Exception:
-            pass
-    conn.commit()
+        with conn:
+            try:
+                print("INSERT: ", row)
+                cursor.execute(statement, (row['username'],
+                                           row['email'],
+                                           row['password'],
+                                           row['fio'],
+                                           row['bio'],
+                                           row['created_at'],
+                                           row['birthday'],
+                                           row['last_logon'],
+                                           )
+                               )
+            except Exception:
+                pass
+    # conn.commit()
 
 
 def load_movies_data(conn, cursor):
@@ -120,10 +121,10 @@ def load_movies_data(conn, cursor):
                                    row['subject'],
                                    )
                        )
-    conn.commit()
+    # conn.commit()
 
 
-# ----------------
+# load dynamic data ----------------
 def load_movies_staff(conn, cursor):
     """"""
     statement = r'INSERT INTO movie_staff_m2m (character, is_lead_role, position_id, person_id, movie_id) values (%s,%s,%s,%s,%s);'
@@ -136,7 +137,7 @@ def load_movies_staff(conn, cursor):
                                    row['movie_id'],
                                    )
                        )
-    conn.commit()
+    # conn.commit()
 
 
 def load_publications(conn, cursor):
@@ -152,15 +153,101 @@ def load_publications(conn, cursor):
                                    row['changed_at'],
                                    )
                        )
-    conn.commit()
+    # conn.commit()
+
+
+def load_awards(conn, cursor):
+    """"""
+    statement = r'INSERT INTO awards (film_award_id, movie_id, person_id, nomination_id) VALUES (%s,%s,%s,%s);'
+    awards_list = list(gen_awards(conn))
+    for row in awards_list:
+        with conn:
+            print("INSERT: ", row)
+            try:
+                cursor.execute(statement, (row['film_award_id'],
+                                           row['movie_id'],
+                                           row['person_id'],
+                                           row['nomination_id'],
+                                           )
+                               )
+            except Exception:
+                continue
+    # conn.commit()
+
+def load_cinema_movie_presence(conn, cursor):
+    """"""
+    statement = r'INSERT INTO cinema_online_movie_presence (movie_id, cinema_id, price, rating, discount, view_count, last_update' \
+                r') VALUES (%s,%s,%s,%s,%s,%s,%s);'
+    cinema_movie_presence_list = list(gen_cinema_movie_presence(conn))
+    for row in cinema_movie_presence_list:
+        print("INSERT: ", row)
+        cursor.execute(statement, (row['movie_id'],
+                                   row['cinema_id'],
+                                   row['price'],
+                                   row['rating'],
+                                   row['discount'],
+                                   row['view_count'],
+                                   row['last_update'],
+                                   )
+                       )
+
+
+def load_user_movie_orders(conn, cursor):
+    """"""
+    statement = r'INSERT INTO user_movie_orders (cinema_order_id, movie_id, user_id, online_cinema_id, price, "date"' \
+                r') VALUES (%s,%s,%s,%s,%s,%s);'
+    for row in gen_user_movie_orders(conn):
+        with conn:
+            try:
+                print("INSERT: ", row)
+                cursor.execute(statement, (row['cinema_order_id'],
+                                           row['movie_id'],
+                                           row['user_id'],
+                                           row['online_cinema_id'],
+                                           row['price'],
+                                           row['date'],
+                                           )
+                               )
+            except Exception:
+                pass
+
+
+def load_users_rating(conn, cursor):
+    """"""
+    statement = r'INSERT INTO users_rating (rating, user_id, movie_id, publication_id, created_at' \
+                r') VALUES (%s,%s,%s,%s,%s);'
+    for row in gen_users_rating(conn):
+        print("INSERT: ", row)
+        cursor.execute(statement, (row['rating'],
+                                   row['user_id'],
+                                   row['movie_id'],
+                                   row['publication_id'],
+                                   row['created_at'],
+                                   )
+                       )
+
+
+def load_comments(conn, cursor):
+    """"""
+    statement = r'INSERT INTO comments (user_id, "comment", parent_id, movie_id, publication_id, created_at, changed_at' \
+                r') VALUES (%s,%s,%s,%s,%s,%s,%s);'
+    for row in gen_comments(conn):
+        print("INSERT: ", row)
+        cursor.execute(statement, (row['user_id'],
+                                   row['comment'],
+                                   row['parent_id'],
+                                   row['movie_id'],
+                                   row['publication_id'],
+                                   row['created_at'],
+                                   row['changed_at'],
+                                   )
+                       )
 
 
 if __name__ == '__main__':
     ''''''
     conn = psycopg2.connect(dsn='postgresql://postgres:POSTGRES6602!@10.66.2.134:5432/kinoteka?sslmode=require')
-    print(conn, conn.status)
     with conn.cursor() as cursor:
-        ''''''
         # constant data
         # load_tags(conn, cursor)
         # load_publications_category(conn, cursor)
@@ -168,16 +255,22 @@ if __name__ == '__main__':
         # load_awards_nominations(conn, cursor)
         # load_persons_positions(conn, cursor)
         # load_cinema_online(conn, cursor)
-
-        #
         # load_movies_data(conn, cursor)
         # load_users(conn, cursor)
         # load_persons(conn, cursor)
-        # load_publications(conn, cursor)
+        # conn.commit()
 
-        # for data in gen_users_rating(conn, count=10):
-        #     print(data)
-
-
-
+        # related data
         load_movies_staff(conn, cursor)
+        load_awards(conn, cursor)
+        # conn.commit()
+        load_cinema_movie_presence(conn, cursor)
+        load_user_movie_orders(conn, cursor)
+        load_publications(conn, cursor)
+        load_comments(conn, cursor)
+        load_users_rating(conn, cursor)
+
+        # fix transaction
+        conn.commit()
+
+

@@ -81,7 +81,7 @@ COMMENT ON TABLE film_award_registry IS 'Существующие кино-пр�
 CREATE TABLE film_award_nominations_registry
 (
     id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title       VARCHAR(128) NOT NULL,
+    title       VARCHAR NOT NULL,
     description TEXT
 );
 COMMENT ON TABLE film_award_registry IS 'Существующие номинации кино-премий';
@@ -179,7 +179,7 @@ COMMENT ON TABLE publications_category IS 'Категории публикаци
 CREATE TABLE publications
 (
     id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title       VARCHAR(256)                                                NOT NULL,
+    title       VARCHAR                                                     NOT NULL,
     "text"      TEXT                                                        NOT NULL,
     author      INTEGER REFERENCES users ON DELETE RESTRICT                 NOT NULL,
     "category"  INTEGER REFERENCES publications_category ON DELETE RESTRICT NOT NULL,
@@ -224,6 +224,7 @@ CREATE TABLE users_rating
 );
 COMMENT ON TABLE users_rating IS 'Пользовательский рейтинг';
 
+COMMIT;
 
 -- INDEXES
 -- CREATE INDEX movie_title_idx ON movies (title);
@@ -235,4 +236,3 @@ COMMENT ON TABLE users_rating IS 'Пользовательский рейтин�
 -- CREATE INDEX publications_text_idx ON publications ("text");
 -- CREATE INDEX publications_create_date_idx ON publications (created_at);
 
-COMMIT;
