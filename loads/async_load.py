@@ -6,7 +6,7 @@ from datetime import datetime
 import asyncpg
 from faker import Faker
 
-from loads.stat_loads import domains_list
+from stat_loads import domains_list
 
 fake = Faker()
 ru_fake = Faker('ru_RU')
@@ -17,7 +17,7 @@ SQL_SELECT_PUB_CAT_IDS = 'SELECT id FROM publications_category;'
 SQL_CREATE_USER = 'INSERT INTO users (username, email, "password", fio, bio, created_at, birthday) VALUES ($1, $2, $3, $4, $5, $6, $7);'
 SQL_DELETE_USER = 'UPDATE users SET deleted_at = $1 WHERE id = $2;'
 SQL_SELECT_PUBLICATION_IDS = 'SELECT id FROM publications;'
-SQL_CREATE_PUBLICATION = 'INSERT INTO publications (title, text, author, category) VALUES ($1, $2, $3, $4);'
+SQL_CREATE_PUBLICATION = 'INSERT INTO publications (title, "text", author, "category") VALUES ($1, $2, $3, $4);'
 SQL_UPDATE_PUBLICATION = 'UPDATE publications SET "text" = $1, changed_at = $2 WHERE id = $3;'
 SQL_DELETE_PUBLICATION = 'DELETE FROM publications WHERE id = $1;'
 SQL_SELECT_MOVIE_IDS = 'SELECT id FROM movies;'
@@ -60,11 +60,11 @@ async def delete_user(dsn):
 
 async def create_publication(dsn):
     conn = await asyncpg.connect(dsn)
-    users_ids = [id[0] for id in await conn.fetch(SQL_SELECT_USERS_IDS)]
-    # get publication category ids
     publications_category_ids = [id[0] for id in await conn.fetch(SQL_SELECT_PUB_CAT_IDS)]
     stmt = await conn.prepare(SQL_CREATE_PUBLICATION)
     while True:
+        # get publication category ids
+        users_ids = [id[0] for id in await conn.fetch(SQL_SELECT_USERS_IDS)]
         user_id = random.choice(users_ids)
         category_id = random.choice(publications_category_ids)
         print('Action: create publication')
@@ -73,7 +73,7 @@ async def create_publication(dsn):
                          user_id,
                          category_id,
                          )
-        await asyncio.sleep(random.randrange(5, 50) / 50)
+        await asyncio.sleep(random.randrange(1, 5))
 
 
 async def update_publication(dsn):
@@ -94,7 +94,7 @@ async def delete_publication(dsn):
     conn = await asyncpg.connect(dsn)
     stmt = await conn.prepare(SQL_DELETE_PUBLICATION)
     while True:
-        await asyncio.sleep(random.randrange(7, 70) / 70)
+        await asyncio.sleep(random.randrange(1, 10))
         publications_ids = [id[0] for id in await conn.fetch(SQL_SELECT_PUBLICATION_IDS)]
         publication_id = random.choice(publications_ids)
         print(f'Action: delete publication ({publication_id})')
@@ -289,12 +289,11 @@ async def set_user_rating_publication(dsn):
 
 
 async def start():
-    # dsn = 'postgresql://postgres:POSTGRES6602!@10.66.2.134:5432/kinoteka?sslmode=require'
-    dsn = 'postgresql://postgres:POSTGRESQLHOME@nas:5432/kinoteka?sslmode=require'
+    dsn = 'postgresql://postgres:POSTGRES6602!@10.66.2.134:5432/kinoteka?sslmode=require'
+    # dsn = 'postgresql://postgres:POSTGRESQLHOME@nas:5432/kinoteka?sslmode=require'
     task_list = [
         asyncio.create_task(create_user(dsn)),
         asyncio.create_task(delete_user(dsn)),
-        asyncio.create_task(create_publication(dsn)),
         asyncio.create_task(create_publication(dsn)),
         asyncio.create_task(update_publication(dsn)),
         asyncio.create_task(delete_publication(dsn)),

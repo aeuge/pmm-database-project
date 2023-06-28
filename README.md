@@ -1,251 +1,172 @@
 # Проектирование и реализация сервиса "Онлайн-кинотека" с дополнительным мониторингом, используя инструмент PMM
+## 1. подготовка схемы базы данных 
+- [Схема базы даных сервиса "Онлайн-кинотека" (SQL: DDL)](loads/sql/create_tables.sql)
+- [Схема базы даных сервиса "Онлайн-кинотека" (IMG: PNG)](assets/pics/kinoteka_db_schema.png)
 
-## Схема бахзы даных сервиса "Онлайн-кинотека"
+## 2. Развертывание кластера БД
+Кластер БД Postgresql развернут на курсе "Otus: Postgresql" и отражен в проекте [«Создание и тестирование высоконагруженного отказоустойчивого кластера PostgreSQL на базе Patroni»](https://github.com/pmshoot/otus-pg-patroni-cluster)
 
-```sql
--- postgres sql
-
-BEGIN;
-
-
-CREATE TABLE tags
-(
-    title VARCHAR(56) NOT NULL UNIQUE
-);
-COMMENT ON TABLE tags IS 'Теги';
-
-
----
-
-
-CREATE TABLE movies
-(
-    id             integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    isbn		   VARCHAR(12),
-    title          VARCHAR NOT NULL,
-    title_original VARCHAR,
-    country        varchar(128),
-    "year"         varchar(4),
-    budget         NUMERIC(12,2) CHECK ( NULL OR budget >= 0 ),
-    boxoffice      NUMERIC(12,2) CHECK ( NULL OR budget >= 0 ),
-    rating         SMALLINT CHECK (rating > 0 AND rating < 6),
-    duration       INTEGER	NOT NULL CHECK ( duration >= 0 ),
-    rars           VARCHAR(12),
-    tags		   JSONB,
-    subject		   TEXT
-);
-COMMENT ON TABLE movies IS 'Каталог кинолент и сериалов';
-
-
----
-
-
-CREATE TABLE persons
-(
-    id         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    country    VARCHAR(128) NOT NULL,
-    last_name  VARCHAR(128) NOT NULL,
-    first_name VARCHAR(128) NOT NULL,
-    mid_name   VARCHAR(128),
-    birthday   DATE,
-    bio        TEXT
-);
-COMMENT ON TABLE persons IS 'Актеры, режиссеры,...';
-
-
-CREATE TABLE person_position
-(
-    id    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title VARCHAR(128) NOT NULL UNIQUE
-);
-COMMENT ON TABLE person_position IS 'Должности и выполняемые функции участников съемок';
-
-
-CREATE TABLE movie_staff_m2m
-(
-    id           integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    "character"  VARCHAR(128),          -- исполняемая роль
-    is_lead_role BOOLEAN DEFAULT FALSE, -- главная роль
-    position_id  SMALLINT NOT NULL REFERENCES person_position ON DELETE RESTRICT,
-    person_id    INTEGER  NOT NULL REFERENCES persons ON DELETE RESTRICT,
-    movie_id     INTEGER  NOT NULL REFERENCES movies ON DELETE CASCADE
-);
-COMMENT ON TABLE movie_staff_m2m IS 'Участники съемок';
-
-
----
-
-
-CREATE TABLE film_award_registry
-(
-    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title       VARCHAR(128) NOT NULL,
-    description TEXT
-);
-COMMENT ON TABLE film_award_registry IS 'Существующие кино-премии мира';
-
-
-CREATE TABLE film_award_nominations_registry
-(
-    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title       VARCHAR(128) NOT NULL,
-    description TEXT
-);
-COMMENT ON TABLE film_award_registry IS 'Существующие номинации кино-премий';
-
-
-CREATE TABLE awards
-(
-    id             integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    film_award_id  INTEGER  NOT NULL REFERENCES film_award_registry ON DELETE RESTRICT,
-    movie_id       INTEGER  NOT NULL REFERENCES movies ON DELETE RESTRICT,
-    person_id      INTEGER REFERENCES persons ON DELETE RESTRICT,
-    nomination_id  INTEGER REFERENCES film_award_nominations_registry ON DELETE RESTRICT NOT NULL,
-    CONSTRAINT award_nomination_unique_constraint UNIQUE (film_award_id, movie_id, nomination_id)
-);
-COMMENT ON TABLE awards IS 'Врученные награды кино-премий';
-
-
----
-
-
-CREATE TABLE users
-(
-    id         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    username   VARCHAR(64)        NOT NULL UNIQUE,
-    email      VARCHAR(128)       NOT NULL UNIQUE,
-    "password" VARCHAR(128)       NOT NULL, -- password hash
-    fio        VARCHAR(256)       NOT NULL,
-    bio        TEXT,
-    created_at DATE DEFAULT NOW() NOT NULL,
-    deleted_at DATE,
-    birthday   DATE               NOT NULL,
-    last_logon DATE,
-    CONSTRAINT user_birthday_check CHECK (birthday < NOW()),
-    CONSTRAINT user_check_created_less_deleted CHECK (users.created_at <= users.deleted_at)
-);
-COMMENT ON TABLE users IS 'Пользователи кинотеки';
-
-
----
-
-
-CREATE TABLE cinema_online
-(
-    id    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title VARCHAR(128) NOT NULL UNIQUE,
-    url   TEXT         NOT NULL UNIQUE
-);
-COMMENT ON TABLE cinema_online IS 'Онлайн кинотеатры';
-
-
-CREATE TABLE cinema_online_movie_presence
-(
-    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    movie_id    INTEGER REFERENCES movies ON DELETE CASCADE,
-    cinema_id   INTEGER REFERENCES cinema_online ON DELETE CASCADE,
-    price       NUMERIC NOT NULL,
-    rating      INTEGER NOT NULL,
-    discount    SMALLINT DEFAULT 0 CHECK ( discount >= 0 OR discount <= 100 ), -- скидка для студентов
-    view_count  INTEGER,
-    last_update DATE,
-    CONSTRAINT movie_cinema_rating_check CHECK (rating > 0 AND rating < 6),
-    CONSTRAINT cinema_online_movie_presence_unique UNIQUE (movie_id, cinema_id)
-);
-COMMENT ON TABLE cinema_online_movie_presence IS 'Наличие фильмов в онлайн-кинотеатрах';
-
-
-CREATE TABLE user_movie_orders
-(
-    id               integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    cinema_order_id  uuid               NOT NULL,
-    movie_id         INTEGER REFERENCES movies ON DELETE RESTRICT,
-    user_id          INTEGER REFERENCES users ON DELETE RESTRICT,
-    online_cinema_id INTEGER REFERENCES cinema_online ON DELETE RESTRICT,
-    price            NUMERIC            NOT NULL CHECK ( price >= 0 ),
-    "date"           DATE DEFAULT NOW() NOT NULL,
-    CONSTRAINT user_movie_orders_m2m_pk2 UNIQUE (user_id, movie_id, online_cinema_id)
-);
-COMMENT ON TABLE user_movie_orders IS 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
-COMMENT ON COLUMN user_movie_orders.cinema_order_id IS 'Идентификационный номер заказа в кинотеатре';
-
-
----
-
-
-CREATE TABLE publications_category
-(
-    id    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title VARCHAR(24) NOT NULL UNIQUE
-);
-COMMENT ON TABLE publications_category IS 'Категории публикаций (новости, обзор, анонс, ...)';
-
-
-
---- Публикации, обзоры, критика пользователей (студентов и преподавателей)
-CREATE TABLE publications
-(
-    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title       VARCHAR(256)                                                NOT NULL,
-    "text"      TEXT                                                        NOT NULL,
-    author      INTEGER REFERENCES users ON DELETE RESTRICT                 NOT NULL,
-    "category"  INTEGER REFERENCES publications_category ON DELETE RESTRICT NOT NULL,
-    created_at  DATE DEFAULT NOW()                                          NOT NULL,
-    changed_at  DATE                                                        NOT NULL,
-    tags		JSONB
-);
-COMMENT ON TABLE publications IS 'Публикации о кинематографе по категориям';
-
-
-CREATE TABLE comments
-(
-    id             integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id        INTEGER            REFERENCES users ON DELETE SET NULL,
-    "comment"      TEXT               NOT NULL,
-    parent_id      INTEGER REFERENCES comments ON DELETE RESTRICT,
-    movie_id       INTEGER REFERENCES movies ON DELETE CASCADE,
-    publication_id INTEGER REFERENCES publications ON DELETE CASCADE,
-    created_at     DATE DEFAULT NOW() NOT NULL,
-    changed_at     DATE,
-    CONSTRAINT comments_on_movie_and_publication_check -- комментарий только к фильму или публикации
-        CHECK (NOT (movie_id IS NULL AND publication_id IS NULL) OR
-               NOT (movie_id IS NOT NULL AND publication_id IS NOT NULL))
-);
-COMMENT ON TABLE comments IS 'Комментарии пользователей';
-
-
----
-CREATE TABLE users_rating
-(
-    id             integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    rating         SMALLINT  NOT NULL,
-    user_id        INTEGER   NOT NULL REFERENCES users ON DELETE CASCADE,
-    movie_id       INTEGER REFERENCES movies ON DELETE CASCADE,
-    publication_id BIGINT REFERENCES publications ON DELETE CASCADE,
-    created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT users_rating_unique_pk2 UNIQUE (movie_id, publication_id, user_id),
-    CONSTRAINT user_rating_check_range_1_5 CHECK (rating > 0 AND rating < 6),
-    CONSTRAINT user_comments_rating_check -- рейтинг только к фильму или публикации
-        CHECK (NOT (movie_id IS NULL AND publication_id IS NULL) OR
-               NOT (movie_id IS NOT NULL AND publication_id IS NOT NULL))
-);
-COMMENT ON TABLE users_rating IS 'Пользовательский рейтинг';
-
-
--- INDEXES
-CREATE INDEX movie_title_idx ON movies (title);
-CREATE INDEX movie_title_original_idx ON movies (title_original);
-CREATE INDEX movie_rating_idx ON movies (rating);
-CREATE INDEX user_fio_idx ON users (fio);
-CREATE INDEX person_name_idx ON persons (last_name, first_name);
-CREATE INDEX publications_title_idx ON publications (title);
-CREATE INDEX publications_text_idx ON publications ("text");
-CREATE INDEX publications_create_date_idx ON publications (created_at);
-
-COMMIT;
+## 3. Развертывание схемы БД на кластере
+На запущенном кластере БД создадим базу данных `kinoteka` и развернем схему БД:
+```postgresql
+postgres=# create database kinoteka owner dba;
+CREATE DATABASE
+postgres=# \c kinoteka dba
+Password for user dba:
+psql (15.3 (Debian 15.3-1.pgdg110+1), server 14.8 (Debian 14.8-1.pgdg110+1))
+You are now connected to database "kinoteka" as user "dba".
+kinoteka=> COMMENT ON database kinoteka is 'БД КИНОТЕКА - Каталог данных о фильмах и сериалах для студентов изучающих современное искусство';
+COMMENT
+kinoteka=>
+\q
 ```
+В терминале запусим SQL скрипт для создания таблиц и индексов. (В случае, если следующим шагом подразумевается 
+заливка большого объема данных, создание индексов лучше произвести после заливки данных, для ускорения)
+```shell
+root@nas:/home/dba/sql# psql -U dba -h localhost -d kinoteka -f ./create_tables.sql
+Password for user dba:
+BEGIN
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+...
+```
+```postgresql
+kinoteka=# \dt
+                    List of relations
+ Schema |              Name               | Type  | Owner
+--------+---------------------------------+-------+-------
+ public | awards                          | table | dba
+ public | cinema_online                   | table | dba
+ public | cinema_online_movie_presence    | table | dba
+ public | comments                        | table | dba
+ public | film_award_nominations_registry | table | dba
+ public | film_award_registry             | table | dba
+ public | movie_staff_m2m                 | table | dba
+ public | movies                          | table | dba
+ public | person_position                 | table | dba
+ public | persons                         | table | dba
+ public | publications                    | table | dba
+ public | publications_category           | table | dba
+ public | tags                            | table | dba
+ public | user_movie_orders               | table | dba
+ public | users                           | table | dba
+ public | users_rating                    | table | dba
+(16 rows)
 
-## Установка клиента PMM и дополнений для postgresql на ноде с БД
+kinoteka=# \di
+                                        List of relations
+ Schema |                 Name                 | Type  | Owner |              Table
+--------+--------------------------------------+-------+-------+---------------------------------
+ public | award_nomination_unique_constraint   | index | dba   | awards
+ public | awards_pkey                          | index | dba   | awards
+ public | cinema_online_movie_presence_pkey    | index | dba   | cinema_online_movie_presence
+ public | cinema_online_movie_presence_unique  | index | dba   | cinema_online_movie_presence
+ public | cinema_online_pkey                   | index | dba   | cinema_online
+ public | cinema_online_title_key              | index | dba   | cinema_online
+ public | cinema_online_url_key                | index | dba   | cinema_online
+ public | comments_pkey                        | index | dba   | comments
+ public | film_award_nominations_registry_pkey | index | dba   | film_award_nominations_registry
+ public | film_award_registry_pkey             | index | dba   | film_award_registry
+ public | movie_rating_idx                     | index | dba   | movies
+ public | movie_staff_m2m_pkey                 | index | dba   | movie_staff_m2m
+ public | movie_title_idx                      | index | dba   | movies
+ public | movie_title_original_idx             | index | dba   | movies
+ public | movies_pkey                          | index | dba   | movies
+ public | person_name_idx                      | index | dba   | persons
+ public | person_position_pkey                 | index | dba   | person_position
+ public | person_position_title_key            | index | dba   | person_position
+ public | persons_pkey                         | index | dba   | persons
+ public | publications_category_pkey           | index | dba   | publications_category
+ public | publications_category_title_key      | index | dba   | publications_category
+ public | publications_create_date_idx         | index | dba   | publications
+ public | publications_pkey                    | index | dba   | publications
+ public | publications_text_gin_idx            | index | dba   | publications
+ public | publications_title_idx               | index | dba   | publications
+ public | tags_title_key                       | index | dba   | tags
+ public | user_fio_idx                         | index | dba   | users
+ public | user_movie_orders_m2m_pk2            | index | dba   | user_movie_orders
+ public | user_movie_orders_pkey               | index | dba   | user_movie_orders
+ public | user_username_idx                    | index | dba   | users
+ public | users_email_key                      | index | dba   | users
+ public | users_pkey                           | index | dba   | users
+ public | users_rating_pkey                    | index | dba   | users_rating
+ public | users_rating_unique_pk2              | index | dba   | users_rating
+ public | users_username_key                   | index | dba   | users
+(35 rows)
+
+kinoteka=#
+```
+Для заполнения тестовыми данными создан [скрипт на Python](loads/main.py) с использованием библиотеки [Faker](https://pypi.org/project/Faker/)
+```shell
+$ python main.py 
+load_tags..OK
+load_publications_category..OK
+load_award_registry..OK
+load_awards_nominations..OK
+load_persons_positions..OK
+load_cinema_online..OK
+load_movies_data..OK
+load_users..OK
+load_persons..OK
+load_movies_staff..OK
+load_awards..OK
+load_cinema_movie_presence..OK
+load_user_movie_orders..OK
+load_publications..OK
+load_comments..OK
+load_users_rating..OK
+```
+```postgresql
+
+kinoteka=# select * from users limit 3;
+
+ id |    username     |         email          |               password               |              fio              |                                                                                                             bio                                                                                                             | created_at | deleted_at |  birthday  | last_logon
+----+-----------------+------------------------+--------------------------------------+-------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------
+  1 | sigizmund_2012  | kononovaverjan@mail.ru | d359956d-534e-4b45-8cd1-095c3cf02b1d | Меркушев Всемил Владиславович | Вперед приятель миф рота головной зеленый. Зачем сутки тесно нервно неожиданно. Затян
+уться июнь смелый пробовать равнодушный возмутиться заплакать. Мера металл командир вряд человечек мимо. Блин приятель экзамен спасть. | 2021-08-11 |            | 1978-05-17 | 2023-03-22
+  2 | nikolaevilarion | nikon2020@cloud.com    | ca6c7ebe-207d-4581-b058-91b2532f6f1f | Крылов Рубен Антипович        | Пропасть виднеться вообще коричневый природа легко бабочка. Легко носок успокоиться а
+кадемик. Крыса белье цвет. Господь манера легко. Радость пол бок прощение вчера упорно устройство.                                     | 2022-03-16 |            | 1963-04-30 | 2022-11-13
+  3 | luchezar1970    | maja_2002@mail.ru      | aba90c8f-5308-47bd-85c5-5a7e4bdc2249 | Рубен Феодосьевич Соловьев    | Багровый школьный нажать. Скользить наткнуться зеленый чувство. Строительство заработ
+ать левый. Хотеть добиться затянуться предоставить. Виднеться сынок горький один каюта хозяйка уничтожение.                            | 2018-03-05 |            | 1997-11-16 | 2023-01-10
+(3 rows)
+```
+В дальнейшем, для имитации работы пользователей с БД (через приложеие) запустим [скрипт](loads/async_load.py), 
+который в асинхронном режиме будет добавлять, изменять и удалять записи в БД. 
+```shell
+$ python async_load.py 
+Action: create user
+Action: update publication (39)
+Action: delete user (mark)
+Action: create publication
+Action: create comment publication (child=False)
+Action: set user rating on publication
+Action: set user rating on movie
+Action: create comment movie (child=False)
+Action: create user movie order
+Action: create comment publication (child=False)
+Action: create comment movie (child=False)
+Action: set user rating on movie
+Action: set user rating on publication
+Action: create comment publication (child=True)
+Action: create comment movie (child=True)
+Action: create comment publication (child=False)
+Action: create user movie order
+Action: create comment publication (child=False)
+Action: set user rating on publication
+Action: set user rating on publication
+Action: create comment movie (child=False)
+Action: create comment publication (child=False)
+Action: set user rating on movie
+Action: create comment publication (child=True)
+Action: set user rating on movie
+...
+```
+## 4. Установка клиента PMM и дополнений для postgresql на ноде с БД
 Установку клиента PMM и расширений произведем на каждой ноде кластера
 ```bash
 root@node0:~# wget https://repo.percona.com/apt/percona-release_latest.generic_all.deb

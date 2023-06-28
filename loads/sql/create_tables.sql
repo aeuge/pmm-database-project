@@ -231,7 +231,9 @@ COMMIT;
  CREATE INDEX movie_title_original_idx ON movies (title_original);
  CREATE INDEX movie_rating_idx ON movies (rating);
  CREATE INDEX user_fio_idx ON users (fio);
+ CREATE INDEX user_username_idx ON users (username);
  CREATE INDEX person_name_idx ON persons ("name");
  CREATE INDEX publications_title_idx ON publications (title);
  CREATE INDEX publications_create_date_idx ON publications (created_at);
-
+ CREATE INDEX publications_text_gin_idx
+   ON publications USING gin (TO_TSVECTOR('russian', text));
