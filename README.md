@@ -4,7 +4,7 @@
 - [Схема базы даных сервиса "Онлайн-кинотека" (IMG: PNG)](assets/pics/kinoteka_db_schema.png)
 
 ## 2. Развертывание кластера БД
-Кластер БД Postgresql [«Создание и тестирование высоконагруженного отказоустойчивого кластера PostgreSQL на базе Patroni»](https://github.com/pmshoot/otus-pg-patroni-cluster)
+Кластер БД Postgresql [«Создание и тестирование высоконагруженного отказоустойчивого кластера PostgreSQL на базе Patroni»](https://github.com/aeuge/pmm-pg-patroni-cluster)
 
 ## 3. Развертывание схемы БД на кластере
 На запущенном кластере БД создадим базу данных `kinoteka` и развернем схему БД:
